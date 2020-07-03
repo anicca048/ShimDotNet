@@ -16,15 +16,22 @@
 #include <string>
 #include <cstdint>
 
-#define ETHERNET_HDR_SIZE 14      // Ethernet headers are always 14 bytes.
-#define ETHERNET_ADDR_LEN 6       // Ethernet mac addresses are always 6 bytes.
-#define ETHERNET_TYPE_IPV4 0x0800 // IPv4 code in ethernet type section.
+#define ETHERNET_HDR_SIZE 14		// Ethernet headers are always 14 bytes.
+#define ETHERNET_ADDR_LEN 6			// Ethernet mac addresses are always 6 bytes.
+#define ETHERNET_TYPE_IPV4 0x0800	// IPv4 code in ethernet type section.
 
-#define IP_TYPE_V4 4              // IPv4 version number for header check.
-#define IPV4_HEADER_MIN_LEN 20    // Minimum byte size of ipv4 header.
+#define IP_TYPE_V4 4				// IPv4 version number for header check.
+#define IPV4_HEADER_MIN_LEN 20		// Minimum byte count of ipv4 header.
 
-#define TCP_HEADER_MIN_LEN 20
-#define UDP_HDR_SIZE 8            // UDP header is always 8 bytes.
+#define TCP_HEADER_MIN_LEN 20		// Minimum byte count of tcp header.
+#define UDP_HDR_SIZE 8				// UDP header is always 8 bytes.
+
+#ifdef _MSC_VER
+
+#define	NPCAP_LOOPBACK_HEADER_LEN 4	// Npcap loopback header is always 4 bytes.
+#define NPCAP_LOOPBACK_TYPE_IPV4 2		// IPv4 code in NPCAP loopback header.
+
+#endif
 
 namespace Packets
 {
@@ -73,6 +80,16 @@ namespace Packets
         uint16_t uh_ulen;   // UDP packet length.
         uint16_t uh_sum;    // UDP packet checksum.
     };
+
+	#ifdef _MSC_VER
+
+	// Npcap loopback adapter header.
+	struct Npcap_Loopback_Header
+	{
+		uint32_t family;	// Number matching protocol of packet (IE: IPV4).
+	};
+
+	#endif
 
     // IP version calculator.
     inline uint8_t IPHdrVer(const IP_Header *&ipHdr)

@@ -61,6 +61,7 @@ using Packets::IP_Header;
 using Packets::TCP_Header;
 using Packets::UDP_Header;
 using Packets::Ethernet_Header;
+using Packets::Npcap_Loopback_Header;
 
 using ShimDotNet::L4_PROTOCOL;
 using ShimDotNet::IPV4_PACKET;
@@ -205,14 +206,17 @@ int CaptureEngine::startCapture(const int deviceIndex, System::String^ CLRfilter
 	{
 		// Ethernet.
 		case DLT_EN10MB:
-		{
 			break;
-		}
 		// RAW IP.
 		case DLT_RAW:
-		{
 			break;
-		}
+		#ifdef _MSC_VER
+
+		// Support Npcap Loopback adapter.
+		case DLT_NULL:
+			break;
+
+		#endif
 		// Unsupported.
 		default:
 		{
@@ -277,7 +281,7 @@ int CaptureEngine::startCapture(System::String^ deviceName, System::String^ filt
 		return -1;
 	}
 
-	return startCapture(deviceName, filterStr);
+	return startCapture(deviceIndex, filterStr);
 }
 
 int CaptureEngine::getNextPacket(IPV4_PACKET^% nextPacket)
@@ -297,8 +301,7 @@ int CaptureEngine::getNextPacket(IPV4_PACKET^% nextPacket)
 
 	// Offset for internet protocol after DL strip.
 	unsigned int ipHdrOff = 0;
-
-	const struct Ethernet_Header* eth_hdr = nullptr;    // Ethernet header ptr.
+	
 	const struct IP_Header* ip_hdr = nullptr;			// IP header ptr.
 	const struct TCP_Header* tcp_hdr = nullptr; 		// TCP header ptr.
 	const struct UDP_Header* udp_hdr = nullptr;			// UDP header ptr.
@@ -318,7 +321,8 @@ int CaptureEngine::getNextPacket(IPV4_PACKET^% nextPacket)
 				return -1;
 
 			// Define ethernet header.
-			eth_hdr = reinterpret_cast<const struct Ethernet_Header*>(packet);
+			const struct Ethernet_Header* eth_hdr =
+				reinterpret_cast<const struct Ethernet_Header*>(packet);
 
 			// Drop non IPv4 packets.
 			if (ntohs(eth_hdr->ether_type) != ETHERNET_TYPE_IPV4)
@@ -343,6 +347,28 @@ int CaptureEngine::getNextPacket(IPV4_PACKET^% nextPacket)
 			ipHdrOff = 0;
 			break;
 		}
+		#ifdef _MSC_VER
+
+		// Support Npcap Loopback adapter.
+		case DLT_NULL:
+		{
+			// Check for damaged NPCAP lpbk packet.
+			if (pktHeader.caplen < NPCAP_LOOPBACK_HEADER_LEN)
+				return -1;
+
+			// Get npcap loopbakc header.
+			const struct Npcap_Loopback_Header* npcap_hdr =
+				reinterpret_cast<const Npcap_Loopback_Header*>(packet);
+
+			// Make sure packet is IPV4.
+			if (npcap_hdr->family != NPCAP_LOOPBACK_TYPE_IPV4)
+				return -1;
+
+			// Use npcap loopback hdr size for offset.
+			ipHdrOff = NPCAP_LOOPBACK_HEADER_LEN;
+		}
+
+		#endif
 	}
 
 	// Create IP header and stats from ethernet or raw header.
