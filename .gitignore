@@ -353,4 +353,4 @@ MigrationBackup/
 .ionide/
 
 # Npcap sdk (pull it from the Nmap site or the Npcap github yourself).
-npcap-sdk-1.05/
+npcap-sdk*/
