@@ -96,13 +96,13 @@ CaptureEngine::~CaptureEngine()
 int CaptureEngine::genDeviceList()
 {
 	// Pcap error message buffer with WinPcap overflow protection.
-	char pcapErrorBuffer[PCAP_ERRBUF_SIZE * 4];
+	char pcapErrorBuffer[PCAP_ERRBUF_SIZE * 4] = {0};
 
 	// generate libpcap interface list.
 	pcap_if_t *deviceList;      // Pcap interface struct for device list.
 
 	// Grab pcap device list and check for retrieval error.
-	if (pcap_findalldevs(&deviceList, pcapErrorBuffer) == -1)
+	if (pcap_findalldevs(&deviceList, pcapErrorBuffer) == PCAP_ERROR)
 	{
 		engineError = msclr::interop::marshal_as<System::String^>(pcapErrorBuffer);
 		return -1;
@@ -166,7 +166,7 @@ int CaptureEngine::startCapture(const int deviceIndex, System::String^ CLRfilter
 	std::string filterStr = msclr::interop::marshal_as<std::string>(CLRfilterStr);
 
 	// Pcap error message buffer with WinPcap overflow protection.
-	char pcapErrorBuffer[PCAP_ERRBUF_SIZE * 4];
+	char pcapErrorBuffer[PCAP_ERRBUF_SIZE * 4] = {0};
 
 	// Convert C++ string to cstr and create pcap device name.
 	size_t devNameSize = (deviceNames[deviceIndex]->Length + 1);
@@ -177,7 +177,7 @@ int CaptureEngine::startCapture(const int deviceIndex, System::String^ CLRfilter
 	bpf_u_int32 deviceNetmask;  // Pcap device netmask for filter.
 
 	// Get network and netmask address for filter compilation.
-	if (pcap_lookupnet(pcapDevice, &deviceNetwork, &deviceNetmask, pcapErrorBuffer) == -1)
+	if (pcap_lookupnet(pcapDevice, &deviceNetwork, &deviceNetmask, pcapErrorBuffer) == PCAP_ERROR)
 	{
 		// Not a critical error, just set these values incase of error.
 		deviceNetwork = 0;
@@ -238,9 +238,9 @@ int CaptureEngine::startCapture(const int deviceIndex, System::String^ CLRfilter
 
 	// Compile pcap filter and check for error.
 	if (pcap_compile(engineHandle, engineFilter, pcapFilter,
-					 deviceNetmask, deviceNetwork) == -1)
+					 deviceNetmask, deviceNetwork) == PCAP_ERROR)
 	{
-		engineError = msclr::interop::marshal_as<System::String^>(pcapErrorBuffer);
+		engineError = msclr::interop::marshal_as<System::String^>(pcap_geterr(engineHandle));
 		// Free memory.
 		delete[] pcapFilter;
 		return -1;
@@ -250,9 +250,9 @@ int CaptureEngine::startCapture(const int deviceIndex, System::String^ CLRfilter
 	delete[] pcapFilter;
 
 	// Bind pcap filter to session handle and check for error.
-	if (pcap_setfilter(engineHandle, engineFilter) == -1)
+	if (pcap_setfilter(engineHandle, engineFilter) == PCAP_ERROR)
 	{
-		engineError = msclr::interop::marshal_as<System::String^>(pcapErrorBuffer);
+		engineError = msclr::interop::marshal_as<System::String^>(pcap_geterr(engineHandle));
 		return -1;
 	}
 
